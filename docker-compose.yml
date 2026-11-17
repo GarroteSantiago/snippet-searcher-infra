@@ -1,0 +1,118 @@
+# Sistema completo con las imágenes publicadas.
+# Para construir desde el código local: ver docker-compose.build.yml.
+name: snippet-searcher
+
+x-auth0: &auth0
+  AUTH0_ISSUER_URI: ${AUTH0_ISSUER_URI:?falta AUTH0_ISSUER_URI en .env}
+  AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:?falta AUTH0_AUDIENCE en .env}
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - snippet-service
+    restart: unless-stopped
+
+  snippet-service:
+    image: ${REGISTRY:?falta REGISTRY en .env}/snippet-service:${TAG:-dev}
+    environment:
+      <<: *auth0
+      DB_URL: jdbc:postgresql://postgres:5432/snippet
+      DB_USER: snippet
+      DB_PASSWORD: ${SNIPPET_DB_PASSWORD:?falta SNIPPET_DB_PASSWORD en .env}
+      PERMISSION_SERVICE_URL: http://permission-service:8080
+      RUNNER_URL: http://printscript-runner:8080
+      ASSET_SERVICE_URL: http://asset-service:8080
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      permission-service:
+        condition: service_started
+      printscript-runner:
+        condition: service_started
+      asset-service:
+        condition: service_started
+    restart: unless-stopped
+
+  permission-service:
+    image: ${REGISTRY}/permission-service:${TAG:-dev}
+    environment:
+      <<: *auth0
+      DB_URL: jdbc:postgresql://postgres:5432/permission
+      DB_USER: permission
+      DB_PASSWORD: ${PERMISSION_DB_PASSWORD:?falta PERMISSION_DB_PASSWORD en .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  printscript-runner:
+    image: ${REGISTRY}/printscript-runner:${TAG:-dev}
+    environment:
+      <<: *auth0
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  asset-service:
+    image: ghcr.io/austral-ingsis/snippet-asset-service:latest
+    environment:
+      AZURE_HOST: http://azurite
+      NEW_RELIC_APP_NAME: asset-service
+      NEW_RELIC_AGENT_ENABLED: "false"
+    depends_on:
+      - azurite
+    restart: unless-stopped
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    command: azurite-blob --blobHost 0.0.0.0 --location /data
+    volumes:
+      - azurite:/data
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
+      SNIPPET_DB_PASSWORD: ${SNIPPET_DB_PASSWORD}
+      PERMISSION_DB_PASSWORD: ${PERMISSION_DB_PASSWORD}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # AOF: los streams sobreviven a un reinicio
+    command: redis-server --appendonly yes
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres:
+  redis:
+  azurite:

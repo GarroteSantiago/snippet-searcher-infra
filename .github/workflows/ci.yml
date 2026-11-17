@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [dev, prod]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validar los archivos de compose
+        run: |
+          cp .env.example .env
+          nix develop --command docker-compose -f docker-compose.yml config --quiet
+          nix develop --command docker-compose -f docker-compose.yml -f docker-compose.build.yml config --quiet
