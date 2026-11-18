@@ -5,7 +5,7 @@ Infraestructura de Snippet Searcher: el sistema completo con docker compose, la 
 ## Requisitos
 
 - [Nix](https://nixos.org) con flakes: `nix develop` trae docker-compose, `psql`, `redis-cli`, `curl` y `jq`.
-- Docker. En NixOS: `virtualisation.docker.enable = true;` en la configuración del sistema.
+- Contenedores: el dev shell trae Podman rootless y lo deja listo para `docker-compose` y Testcontainers (`DOCKER_HOST`), sin instalar nada en el sistema ni correr como root. Imágenes y contenedores quedan en `.podman/` (ignorado por git); para borrar todo: `podman unshare rm -rf .podman`. Ver `dev/podman-env.sh`.
 
 ## Levantar el sistema
 

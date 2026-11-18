@@ -1,3 +1,6 @@
 .env
 .direnv/
 result
+
+# Contenedores rootless de este repo (dev/podman-env.sh)
+.podman/

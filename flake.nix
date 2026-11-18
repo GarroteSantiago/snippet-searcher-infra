@@ -16,7 +16,8 @@
       {
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
-            # Contenedores (el daemon de Docker se habilita en la config de NixOS)
+            # Contenedores rootless, solo para este repo (dev/podman-env.sh)
+            podman
             docker-compose
 
             # Clientes para inspeccionar el estado
@@ -27,6 +28,10 @@
             curl
             jq
           ];
+
+          shellHook = ''
+            source ${./dev/podman-env.sh} snippet-searcher-infra
+          '';
         };
       }
     );
