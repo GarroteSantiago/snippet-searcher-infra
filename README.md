@@ -17,10 +17,12 @@ cp .env.example .env    # completar Auth0, contraseñas y REGISTRY
 docker-compose up -d
 
 # Construyendo desde los repos clonados al lado de este (../snippet-service, etc.)
-docker-compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+COMPOSE_FILE=$COMPOSE_FILE:docker-compose.build.yml docker-compose up -d --build
 
 curl localhost/api/health
 ```
+
+Con el Podman rootless del dev shell: el puerto de NGINX tiene que ser mayor a 1024 (por ejemplo `HTTP_PORT=8088`), y el dev shell suma `docker-compose.podman.yml` (sin health checks; ver el comentario del archivo) a través de `COMPOSE_FILE`.
 
 | Servicio | Imagen | Notas |
 |---|---|---|

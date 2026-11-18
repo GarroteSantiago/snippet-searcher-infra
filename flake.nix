@@ -31,6 +31,8 @@
 
           shellHook = ''
             source ${./dev/podman-env.sh} snippet-searcher-infra
+            # Con Podman, sin health checks (ver docker-compose.podman.yml)
+            export COMPOSE_FILE=docker-compose.yml:docker-compose.podman.yml
           '';
         };
       }

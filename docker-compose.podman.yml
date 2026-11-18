@@ -1,0 +1,32 @@
+# Override para el Podman rootless del dev shell (dev/podman-env.sh); el dev shell lo agrega solo
+# con COMPOSE_FILE.
+#
+# Podman programa los health checks con timers de systemd, y esos timers corren un `podman` que no
+# ve el storage de .podman/ (está en variables de entorno del dev shell), así que nunca pasan y
+# `depends_on: service_healthy` espera para siempre. Acá se apagan: los servicios arrancan sin
+# esperar, y si Postgres o Redis todavía no están listos se caen y `restart: unless-stopped` los
+# vuelve a levantar hasta que conectan. Con Docker o Swarm los health checks siguen activos.
+services:
+  postgres:
+    healthcheck:
+      disable: true
+
+  redis:
+    healthcheck:
+      disable: true
+
+  snippet-service:
+    depends_on: !override
+      - postgres
+      - redis
+      - permission-service
+      - printscript-runner
+      - asset-service
+
+  permission-service:
+    depends_on: !override
+      - postgres
+
+  printscript-runner:
+    depends_on: !override
+      - redis
