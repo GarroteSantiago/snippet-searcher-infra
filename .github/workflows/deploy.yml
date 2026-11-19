@@ -1,4 +1,5 @@
 name: Deploy
+run-name: Deploy ${{ github.event.client_payload.environment || inputs.environment || github.ref_name }}
 
 # Despliega el stack de una rama (dev o prod) en su VM. Lo disparan:
 # - un push a dev o prod en este repo (cambios del stack o de NGINX);
