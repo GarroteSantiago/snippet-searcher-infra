@@ -499,7 +499,7 @@ for repo in "${APPS[@]}"; do
   for branch in dev prod; do
     # The run shows up some seconds after the push
     for _ in 1 2 3 4 5 6; do
-      id=$(gh run list -R "$OWNER/$repo" --workflow publish.yml --branch "$branch" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+      id=$(gh run list -R "$OWNER/$repo" --workflow publish-image.yml --branch "$branch" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
       [[ -n "$id" ]] && break
       sleep 10
     done

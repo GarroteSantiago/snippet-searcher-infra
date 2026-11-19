@@ -188,7 +188,7 @@ Cada ambiente es una VM de Azure con un Swarm de un nodo: `dev` despliega la ram
 
 **TLS.** Let's Encrypt con el desafío HTTP-01 (`nginx/stack/`). NGINX arranca solo con el puerto 80 (el desafío y una redirección a HTTPS); el servicio `certbot` emite el certificado en el volumen `certs` y NGINX suma el 443 en cuanto lo encuentra (a lo sumo 30 s). `certbot` intenta renovar cada 12 h y NGINX recarga cada 12 h. El dominio es el DNS de la IP pública de la VM (`<label>.<región>.cloudapp.azure.com`), que tiene que existir antes del primer despliegue. Para probar sin gastar los intentos de Let's Encrypt: `LETSENCRYPT_STAGING=true` (el navegador no confía en ese certificado; para pasar al real, borrar el volumen `snippet-searcher_certs`).
 
-**CD.** `.github/workflows/deploy.yml` corre `deploy.sh` contra la VM del ambiente por SSH (`DOCKER_HOST=ssh://...`). Lo disparan un push a `dev` o `prod` de este repo, el `publish.yml` de cada servicio y de la UI después de subir su imagen a GHCR (un `repository_dispatch` con el ambiente), o la pestaña *Actions* a mano. Como el tag de la imagen es el nombre de la rama, `docker stack deploy` lo resuelve en GHCR y actualiza solo los servicios cuya imagen cambió.
+**CD.** `.github/workflows/deploy.yml` corre `deploy.sh` contra la VM del ambiente por SSH (`DOCKER_HOST=ssh://...`). Lo disparan un push a `dev` o `prod` de este repo, el `publish-image.yml` de cada servicio y de la UI después de subir su imagen a GHCR (un `repository_dispatch` con el ambiente), o la pestaña *Actions* a mano. Como el tag de la imagen es el nombre de la rama, `docker stack deploy` lo resuelve en GHCR y actualiza solo los servicios cuya imagen cambió.
 
 | Dónde | Nombre | Qué es |
 |---|---|---|
