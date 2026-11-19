@@ -157,13 +157,16 @@ Recorrido a mano, en `http://localhost:8088/` (una ventana normal para alice y u
 
   ```
   let nombreUsuario: string = readInput("Nombre");
-  println("Hola " + nombreUsuario);
+  let saludo: string = "Hola " + nombreUsuario;
+  println(saludo);
   ```
+
+  (Con `println("Hola " + nombreUsuario)` queda `not-compliant`: la regla `mandatory-variable-or-literal-in-println` está prendida por defecto.)
 
   Un contenido inválido (`let x = ;`) muestra el error y no se crea.
 - [ ] **Compartir alice → bob.** En el snippet, *Share*, buscar y elegir a bob. En la ventana privada, *Entrar como bob*: el snippet aparece como compartido, se puede abrir, pero *Share*, guardar y borrar están deshabilitados.
 - [ ] **Ejecutar.** En el snippet (como alice y como bob), *Run*: pide el input `Nombre`, se escribe uno y muestra `Hola <nombre>` con el estado `ok`.
-- [ ] **Descargar formateado.** *Download → Original* baja el contenido tal cual. Antes de tocar las reglas de formato, *Formatted* avisa que todavía no hay. En *Formatting rules*, cambiar una regla y guardar; al rato *Download → Formatted* baja la versión con las reglas nuevas.
+- [ ] **Descargar formateado.** *Download → Original* baja el contenido tal cual. Si el usuario nunca cambió sus reglas de formato, *Formatted* avisa que todavía no hay (la versión formateada se genera recién con un cambio de reglas). En *Formatting rules*, cambiar una regla y guardar; al rato *Download → Formatted* baja la versión con las reglas nuevas.
 - [ ] **Renovar el token.** Con `"tokenExpiry": 120` en `local-auth/config.json` y `docker-compose restart oidc`, entrar y dejar la pestaña abierta 2 o 3 minutos: en la pestaña *Network* de las herramientas del navegador aparece un `POST .../token` con `grant_type=refresh_token` antes de que venza, y la UI sigue andando sin volver al login. Después, dejar `3600` y reiniciar `oidc` de nuevo.
 
 ## Migrar a GitHub
