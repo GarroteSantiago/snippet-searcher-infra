@@ -13,6 +13,8 @@ x-service-env: &service-env
   NEW_RELIC_LICENSE_KEY_FILE: /run/secrets/new_relic_license_key
   NEW_RELIC_OTLP_URL: ${NEW_RELIC_OTLP_URL:-https://otlp.nr-data.net/v1/metrics}
   NEW_RELIC_LABELS: environment:${ENVIRONMENT:?falta ENVIRONMENT (dev o prod)}
+  # Heap relativo al límite de memoria del contenedor (x-jvm-limits)
+  JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70
 
 # Servicios sin estado: actualización de a una réplica, la nueva arranca y pasa el health check
 # antes de bajar la vieja; si no llega a sana, vuelve a la versión anterior
@@ -34,6 +36,13 @@ x-healthcheck: &healthcheck
   timeout: 3s
   retries: 5
   start_period: 120s
+
+# VMs de 4 GB (B2s) con seis JVMs: cada una con un límite, así una no se come la memoria de las
+# demás. Las actualizaciones start-first suman una réplica más por un rato
+x-jvm-limits: &jvm-limits
+  resources:
+    limits:
+      memory: 480M
 
 x-manager: &manager
   placement:
@@ -115,7 +124,7 @@ services:
     healthcheck: *healthcheck
     deploy:
       replicas: 2
-      <<: *rolling
+      <<: [*rolling, *jvm-limits]
 
   permission-service:
     image: ${REGISTRY}/permission-service:${TAG}
@@ -127,7 +136,7 @@ services:
     secrets: [permission_db_password, new_relic_license_key]
     healthcheck: *healthcheck
     deploy:
-      <<: *rolling
+      <<: [*rolling, *jvm-limits]
 
   # Cada réplica es un consumidor distinto del grupo de snippet:jobs (el nombre es el hostname)
   printscript-runner:
@@ -140,7 +149,7 @@ services:
     healthcheck: *healthcheck
     deploy:
       replicas: 2
-      <<: *rolling
+      <<: [*rolling, *jvm-limits]
 
   asset-service:
     image: ghcr.io/austral-ingsis/snippet-asset-service:latest
@@ -148,7 +157,9 @@ services:
       AZURE_HOST: http://azurite
       NEW_RELIC_APP_NAME: asset-service
       NEW_RELIC_AGENT_ENABLED: "false"
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70
     deploy:
+      <<: *jvm-limits
       restart_policy:
         condition: any
         delay: 5s

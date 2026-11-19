@@ -27,6 +27,12 @@
             # Tests de la API (api-tests/, colección de Bruno)
             bruno-cli
 
+            # Despliegue: cuentas y VMs (scripts/setup-deploy.sh). New Relic no tiene CLI en
+            # nixpkgs: se usa su API NerdGraph con curl
+            azure-cli
+            auth0-cli
+            gh
+
             # Utilidades
             curl
             jq
