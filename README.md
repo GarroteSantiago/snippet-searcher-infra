@@ -54,6 +54,8 @@ New Relic queda apagado hasta tener la license key: `NEW_RELIC_ENABLED=true` y `
 
 Con imágenes construidas a mano (`podman build -t snippet-searcher/<servicio>:local`, `REGISTRY=snippet-searcher` y `TAG=local`), `docker-compose up -d --pull never`: si no, compose las busca en docker.io.
 
+Si después de reiniciar la máquina los servicios no arrancan con `No route to host` (o NGINX da `502`), el DNS de Podman quedó con las IPs viejas de los contenedores: `docker-compose down` (los volúmenes quedan) y `docker-compose up -d` de nuevo.
+
 ## Login local (sin Auth0)
 
 `docker-compose.local-auth.yml` suma un servidor OIDC de prueba ([mock-oauth2-server](https://github.com/navikt/mock-oauth2-server), servicio `oidc`) que emite tokens con la forma de los de Auth0. Los servicios no cambian: el override solo pisa las variables de Auth0 de `.env`.
@@ -125,6 +127,44 @@ dev/api-tests.sh --reporter-junit results.xml   # además, un reporte JUnit
 | `04-tests` | Crear, listar, correr (`success` / `fail`, guardado y sin guardar), último resultado, editar, permisos del lector, US-16 (modificar el snippet vuelve a correr sus tests), borrar |
 | `05-reglas` | Reglas por defecto, `/format`, descarga original y formateada, cambio de lint (`not-compliant` y vuelta a `compliant`) y de formato (la versión formateada cambia) |
 | `06-limpieza` | Borrar el snippet: desaparece para los dos usuarios, con sus tests |
+
+## Smoke test
+
+Lo que no es HTTP no entra en Bruno (su CLI no corre WebSockets), así que hay dos scripts más, en bash y con lo que ya trae el dev shell. `dev/smoke.sh` corre los tres en orden, sigue aunque falle uno y sale con `1` si falló alguno:
+
+```sh
+COMPOSE_FILE=$COMPOSE_FILE:docker-compose.local-auth.yml docker-compose up -d
+dev/smoke.sh                 # todo, unos dos minutos y medio
+dev/smoke.sh --sin-fallos    # sin matar al Runner, unos 20 segundos
+```
+
+| Script | Qué prueba |
+|---|---|
+| `dev/api-tests.sh` | La colección de Bruno (ver arriba) |
+| `dev/ws-test.sh` | Ejecución interactiva por `/api/ws/snippets/{id}/run` (US-10, `contracts/websocket.md`): `output`, `input-request`, `input` y `done ok` del dueño y de un lector, `stop`, un segundo `start` (`4409`), token inválido, ausente o que no llega en 5 s (`4401`), sin acceso o inexistente (`4404`). El cliente es bash puro: `/dev/tcp` y el protocolo a mano (el curl de nixpkgs viene sin `ws://`) |
+| `dev/fault-test.sh` | Redis Streams (etapa 6): cambia las reglas de lint de un usuario con 30 snippets, hace `docker-compose kill printscript-runner` a mitad del reproceso, lo vuelve a levantar y comprueba que reclama los jobs con `XAUTOCLAIM` y que todos llegan a su compliance final. Además, el máximo de entregas: con 3 entregas el job se procesa y con 4 se descarta y el snippet queda `failed`. Para no matar al Runner cuatro veces, un consumidor `ghost` le fija el contador al job con `XCLAIM ... RETRYCOUNT` |
+
+`dev/fault-test.sh` tarda por `min-idle` (60 s) más el intervalo de reclamo (30 s) de `streams.*` en el `application.yaml` del Runner. Si el Runner llega a terminar el reproceso antes de que lo maten, el script lo dice: subir `snippets_a` o `lines`.
+
+## La UI en el navegador
+
+`dev/ui.sh` construye `../printscript-ui` para el login local (authority `http://auth.localhost:${HTTP_PORT}/snippet-searcher`, client id `printscript-ui`, audience `https://snippet-searcher/api`) y la copia en `nginx/html`; queda en `http://localhost:${HTTP_PORT}/`. Reemplaza la página provisoria (para volver: `git checkout nginx/html && git clean -fd nginx/html`).
+
+Recorrido a mano, en `http://localhost:8088/` (una ventana normal para alice y una privada para bob, así no comparten la sesión):
+
+- [ ] **Login.** Sin sesión, la UI va a la página del login local; *Entrar como alice* vuelve a la UI con la lista de snippets (vacía la primera vez) y el nombre arriba. *Log out* vuelve al login.
+- [ ] **Crear.** *Create snippet* con un nombre, versión 1.1 y este contenido; aparece en la lista en `pending` y al rato `compliant`:
+
+  ```
+  let nombreUsuario: string = readInput("Nombre");
+  println("Hola " + nombreUsuario);
+  ```
+
+  Un contenido inválido (`let x = ;`) muestra el error y no se crea.
+- [ ] **Compartir alice → bob.** En el snippet, *Share*, buscar y elegir a bob. En la ventana privada, *Entrar como bob*: el snippet aparece como compartido, se puede abrir, pero *Share*, guardar y borrar están deshabilitados.
+- [ ] **Ejecutar.** En el snippet (como alice y como bob), *Run*: pide el input `Nombre`, se escribe uno y muestra `Hola <nombre>` con el estado `ok`.
+- [ ] **Descargar formateado.** *Download → Original* baja el contenido tal cual. Antes de tocar las reglas de formato, *Formatted* avisa que todavía no hay. En *Formatting rules*, cambiar una regla y guardar; al rato *Download → Formatted* baja la versión con las reglas nuevas.
+- [ ] **Renovar el token.** Con `"tokenExpiry": 120` en `local-auth/config.json` y `docker-compose restart oidc`, entrar y dejar la pestaña abierta 2 o 3 minutos: en la pestaña *Network* de las herramientas del navegador aparece un `POST .../token` con `grant_type=refresh_token` antes de que venza, y la UI sigue andando sin volver al login. Después, dejar `3600` y reiniciar `oidc` de nuevo.
 
 ## Migrar a GitHub
 
