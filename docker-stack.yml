@@ -35,7 +35,9 @@ x-healthcheck: &healthcheck
   interval: 10s
   timeout: 3s
   retries: 5
-  start_period: 120s
+  # Con las JVMs y el agente de New Relic arrancando a la vez en 2 vCPUs, cada una tarda varios
+  # minutos: con menos margen Swarm las mata antes de que terminen y no converge nunca
+  start_period: 300s
 
 # VMs de 4 GB (B2s) con seis JVMs: cada una con un límite, así una no se come la memoria de las
 # demás. Las actualizaciones start-first suman una réplica más por un rato
