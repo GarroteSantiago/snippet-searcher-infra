@@ -196,6 +196,16 @@ Cada ambiente es una VM de Azure con un Swarm de un nodo: `dev` despliega la ram
 | Variables del repo | `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`, `AUTH0_M2M_CLIENT_ID`, `LETSENCRYPT_EMAIL`, `NEW_RELIC_OTLP_URL`, `NEW_RELIC_ENABLED` (opcional, `true` por defecto) | Comunes a los dos ambientes |
 | Environment `dev` / `prod` | variables `DOMAIN`, `SSH_USER`; secretos `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` | La VM y la clave SSH con la que CI entra |
 
+**Prender y apagar las VMs.** Para no pagar cómputo todo el día, las VMs quedan apagadas (*deallocated*: se paga solo el disco y la IP, y el dominio no cambia) y se prenden para usarlas:
+
+```sh
+scripts/vm.sh start dev     # o prod, o all; espera el SSH y corre el workflow Deploy
+scripts/vm.sh stop all
+scripts/vm.sh status
+```
+
+Al prender, Swarm levanta solo el stack que había. Además `start` corre el workflow Deploy, para tomar las imágenes que se publicaron con la VM apagada: con la VM apagada, el workflow no despliega y termina igual en verde, con un aviso. Azure apaga las dos VMs todas las noches a las 03:00 UTC (*auto-shutdown*), por si queda alguna prendida.
+
 A mano, desde una máquina con acceso SSH a la VM:
 
 ```sh
