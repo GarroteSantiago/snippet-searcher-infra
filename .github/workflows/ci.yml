@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches: [dev, prod]
-  # Para volver a validar a mano (pestaña Actions)
+  # Para volver a validar a mano (pestaña Actions, o gh workflow run ci.yml)
   workflow_dispatch:
 
 jobs:
