@@ -279,9 +279,10 @@ pause "Press Enter to continue"
 stage "Names and domains"
 say "Each VM gets a free domain from Azure: <label>.<region>.cloudapp.azure.com."
 say "Let's Encrypt issues the certificate for that domain. The label must be unique in the region."
-note "Azure for Students only allows some regions; if VM creation fails with a policy error, pick another."
+note "Azure for Students only allows some regions and sizes (az policy assignment list, az vm list-skus);"
+note "for this subscription B2s was only available in northcentralus."
 owner_lc=${OWNER,,}
-ask_or AZURE_LOCATION "Azure region:" eastus
+ask_or AZURE_LOCATION "Azure region:" northcentralus
 ask_or DEV_DNS_LABEL "DNS label for dev:" "snippets-dev-$owner_lc"
 ask_or PROD_DNS_LABEL "DNS label for prod:" "snippets-$owner_lc"
 ask_or VM_SIZE "VM size (B2s = 2 vCPU / 4 GB; B2ms = 8 GB if memory runs short):" Standard_B2s
