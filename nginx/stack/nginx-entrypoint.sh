@@ -25,7 +25,8 @@ render http
             render https
             echo "Certificado de $DOMAIN encontrado: HTTPS prendido"
         fi
-        nginx -s reload
+        # Si la config nueva no carga, NGINX sigue con la anterior: se saca el 443 para reintentar
+        nginx -s reload || rm -f /etc/nginx/conf.d/https.conf
     done
 ) &
 
