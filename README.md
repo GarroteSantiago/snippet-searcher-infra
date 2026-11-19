@@ -237,4 +237,4 @@ git push -u origin dev prod
 gh repo edit <owner>/snippet-searcher-infra --default-branch dev
 ```
 
-CI (`ci.yml`) valida los archivos de compose, el stack de Swarm y los scripts (shellcheck) en cada pull request.
+CI (`validate.yml`) valida los archivos de compose, el stack de Swarm y los scripts (shellcheck) en cada pull request.
