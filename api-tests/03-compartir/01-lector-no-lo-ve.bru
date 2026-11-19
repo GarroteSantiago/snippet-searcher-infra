@@ -1,0 +1,19 @@
+meta {
+  name: El lector todavía no lo ve
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+tests {
+  test("404, no se revela que existe", () => expect(res.status).to.equal(404))
+}

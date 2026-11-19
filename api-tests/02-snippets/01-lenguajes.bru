@@ -1,0 +1,20 @@
+meta {
+  name: Lenguajes soportados
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/languages
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("PrintScript 1.0 y 1.1 con extensión ps", () => {
+    expect(res.status).to.equal(200)
+    const ps = res.body.find(l => l.language === "printscript")
+    expect(ps.extension).to.equal("ps")
+    expect(ps.versions).to.include.members(["1.0", "1.1"])
+  })
+}

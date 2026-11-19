@@ -1,0 +1,26 @@
+meta {
+  name: Formatear código inválido
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/format
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "content": "let a: number = ;",
+    "language": "printscript",
+    "version": "1.1"
+  }
+}
+
+tests {
+  test("422 con diagnósticos", () => {
+    expect(res.status).to.equal(422)
+    expect(res.body.diagnostics).to.have.lengthOf.at.least(1)
+  })
+}

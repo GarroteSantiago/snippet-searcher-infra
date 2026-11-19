@@ -1,0 +1,19 @@
+meta {
+  name: Correr el test que falla
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/snippets/{{snippetId}}/tests/{{testFailId}}/run
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("fail con los outputs obtenidos", () => {
+    expect(res.status).to.equal(200)
+    expect(res.body.status).to.equal("fail")
+    expect(res.body.outputs).to.eql(["Hola Ana", "fin"])
+  })
+}

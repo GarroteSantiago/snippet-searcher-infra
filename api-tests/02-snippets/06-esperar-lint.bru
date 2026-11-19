@@ -1,0 +1,28 @@
+meta {
+  name: Esperar el lint por Redis
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  El lint corre en el Runner a través de snippet:jobs; se consulta hasta que deja de estar pending.
+}
+
+tests {
+  test("queda compliant", async () => {
+    const axios = require("axios")
+    const headers = {Authorization: "Bearer " + bru.getVar("ownerToken")}
+    let compliance = res.body.compliance
+    for (let i = 0; i < 60 && compliance === "pending"; i++) {
+      await new Promise(r => setTimeout(r, 250))
+      compliance = (await axios.get(req.getUrl(), {headers})).data.compliance
+    }
+    expect(compliance).to.equal("compliant")
+  })
+}

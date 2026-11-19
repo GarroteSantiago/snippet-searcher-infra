@@ -1,0 +1,15 @@
+meta {
+  name: El dueño borra el snippet
+  type: http
+  seq: 1
+}
+
+delete {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("204", () => expect(res.status).to.equal(204))
+}

@@ -1,0 +1,18 @@
+meta {
+  name: Listar los tests
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}/tests
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 con los dos tests", () => {
+    expect(res.status).to.equal(200)
+    expect(res.body.map(t => t.id)).to.have.members([bru.getVar("testOkId"), bru.getVar("testFailId")])
+  })
+}

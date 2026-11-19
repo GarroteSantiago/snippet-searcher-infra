@@ -1,0 +1,18 @@
+meta {
+  name: El original no cambia
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("el contenido sigue sin formatear", () => {
+    expect(res.status).to.equal(200)
+    expect(res.body.content).to.contain("nombreUsuario: string")
+  })
+}

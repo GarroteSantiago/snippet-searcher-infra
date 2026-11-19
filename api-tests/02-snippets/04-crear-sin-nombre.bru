@@ -1,0 +1,24 @@
+meta {
+  name: Crear snippet sin nombre
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/snippets
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "language": "printscript",
+    "version": "1.1",
+    "extension": "ps",
+    "content": "println(1);"
+  }
+}
+
+tests {
+  test("400", () => expect(res.status).to.equal(400))
+}

@@ -1,0 +1,18 @@
+meta {
+  name: Health sin token
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/health
+  body: none
+  auth: none
+}
+
+tests {
+  test("200 y UP", () => {
+    expect(res.status).to.equal(200)
+    expect(res.body.status).to.equal("UP")
+  })
+}

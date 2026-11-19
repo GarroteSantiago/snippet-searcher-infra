@@ -1,0 +1,19 @@
+meta {
+  name: El lector no puede borrarlo
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+tests {
+  test("403", () => expect(res.status).to.equal(403))
+}

@@ -1,0 +1,25 @@
+meta {
+  name: El lector no puede compartir un snippet ajeno
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/snippets/{{snippetId}}/share
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+body:json {
+  {
+    "userId": "{{readerId}}"
+  }
+}
+
+tests {
+  test("404", () => expect(res.status).to.equal(404))
+}

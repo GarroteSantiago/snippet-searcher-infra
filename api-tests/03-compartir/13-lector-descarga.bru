@@ -1,0 +1,22 @@
+meta {
+  name: El lector lo descarga
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}/download
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+tests {
+  test("200 con el archivo", () => {
+    expect(res.status).to.equal(200)
+    expect(res.headers["content-disposition"]).to.contain("saludo.ps")
+  })
+}

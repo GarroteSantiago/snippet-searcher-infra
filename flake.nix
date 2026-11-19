@@ -24,6 +24,9 @@
             postgresql
             redis
 
+            # Tests de la API (api-tests/, colección de Bruno)
+            bruno-cli
+
             # Utilidades
             curl
             jq

@@ -1,0 +1,25 @@
+meta {
+  name: El lector no puede volver a compartirlo
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/snippets/{{snippetId}}/share
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+body:json {
+  {
+    "userId": "{{ownerId}}"
+  }
+}
+
+tests {
+  test("403", () => expect(res.status).to.equal(403))
+}

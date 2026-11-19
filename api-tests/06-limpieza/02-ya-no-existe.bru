@@ -1,0 +1,15 @@
+meta {
+  name: Ya no existe
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("404", () => expect(res.status).to.equal(404))
+}

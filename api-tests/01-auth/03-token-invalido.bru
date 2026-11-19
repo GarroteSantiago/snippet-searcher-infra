@@ -1,0 +1,19 @@
+meta {
+  name: Snippets con token inválido
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/snippets
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: no-es-un-jwt
+}
+
+tests {
+  test("401", () => expect(res.status).to.equal(401))
+}

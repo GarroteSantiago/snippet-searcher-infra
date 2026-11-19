@@ -1,0 +1,15 @@
+meta {
+  name: Un snippet nuevo no tiene versión formateada
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}/download?formatted=true
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("404 hasta que se modifique o cambien las reglas de formato", () => expect(res.status).to.equal(404))
+}

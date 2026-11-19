@@ -1,0 +1,30 @@
+meta {
+  name: Crear snippet con código inválido
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/snippets
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "roto",
+    "language": "printscript",
+    "version": "1.1",
+    "extension": "ps",
+    "content": "let x: number = ;"
+  }
+}
+
+tests {
+  test("422 con diagnóstico de línea y columna", () => {
+    expect(res.status).to.equal(422)
+    expect(res.body.diagnostics).to.have.lengthOf.at.least(1)
+    expect(res.body.diagnostics[0].line).to.equal(1)
+    expect(res.body.diagnostics[0].column).to.be.a("number")
+  })
+}

@@ -1,0 +1,26 @@
+meta {
+  name: Actualizar con código inválido
+  type: http
+  seq: 12
+}
+
+put {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "content": "println(;"
+  }
+}
+
+tests {
+  test("422 y el contenido no cambia", async () => {
+    expect(res.status).to.equal(422)
+    const axios = require("axios")
+    const current = await axios.get(req.getUrl(), {headers: {Authorization: "Bearer " + bru.getVar("ownerToken")}})
+    expect(current.data.content).to.contain("fin")
+  })
+}

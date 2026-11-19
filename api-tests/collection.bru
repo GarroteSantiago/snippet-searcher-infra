@@ -1,0 +1,16 @@
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+docs {
+  Tests de la API pública por NGINX, contra el sistema completo con el login local
+  (docker-compose.local-auth.yml). Cada corrida entra con usuarios nuevos (`owner-<runId>` y
+  `reader-<runId>`): arrancan con las reglas por defecto y sin snippets, así la colección se
+  puede correr las veces que haga falta. Ver el README.
+
+  Por defecto los pedidos van con el token del dueño; los que prueban otro usuario lo dicen.
+}

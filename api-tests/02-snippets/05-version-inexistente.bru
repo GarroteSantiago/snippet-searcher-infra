@@ -1,0 +1,25 @@
+meta {
+  name: Crear snippet con una versión que no existe
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/snippets
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "futuro",
+    "language": "printscript",
+    "version": "9.9",
+    "extension": "ps",
+    "content": "println(1);"
+  }
+}
+
+tests {
+  test("400", () => expect(res.status).to.equal(400))
+}

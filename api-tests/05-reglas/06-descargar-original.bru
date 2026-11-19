@@ -1,0 +1,19 @@
+meta {
+  name: Descargar el original (US-13)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}/download
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 con nombre de archivo y contenido", () => {
+    expect(res.status).to.equal(200)
+    expect(res.headers["content-disposition"]).to.contain("saludo.ps")
+    expect(res.body).to.contain("Chau")
+  })
+}

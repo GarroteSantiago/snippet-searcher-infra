@@ -1,0 +1,27 @@
+meta {
+  name: Descargar formateado después de modificarlo
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}/download?formatted=true
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 con las reglas por defecto (modificar publica FORMAT)", async () => {
+    const axios = require("axios")
+    const headers = {Authorization: "Bearer " + bru.getVar("ownerToken")}
+    let status = res.status, body = res.body
+    for (let i = 0; i < 60 && status !== 200; i++) {
+      await new Promise(r => setTimeout(r, 250))
+      const r = await axios.get(req.getUrl(), {headers, validateStatus: () => true})
+      status = r.status
+      body = r.data
+    }
+    expect(status).to.equal(200)
+    expect(body).to.contain("nombreUsuario: string")
+  })
+}

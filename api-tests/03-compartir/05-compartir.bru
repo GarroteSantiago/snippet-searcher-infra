@@ -1,0 +1,21 @@
+meta {
+  name: Compartir con el lector
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/snippets/{{snippetId}}/share
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "userId": "{{readerId}}"
+  }
+}
+
+tests {
+  test("200", () => expect(res.status).to.equal(200))
+}

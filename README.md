@@ -102,6 +102,30 @@ curl -s http://auth.localhost:8088/snippet-searcher/token \
 - La clave de firma viene dentro de la imagen del servidor de prueba (es pública): no sirve para nada fuera de este entorno.
 - Dentro de un contenedor, `curl` también resuelve `*.localhost` a sí mismo; los servicios (Java) usan el DNS de compose y no tienen el problema. Para probar a mano desde un contenedor: `curl --resolve auth.localhost:8088:$(getent hosts auth.localhost | cut -d' ' -f1) ...`.
 
+## Tests de la API
+
+`api-tests/` es una colección de [Bruno](https://www.usebruno.com) que recorre la API pública por NGINX contra el sistema completo: autenticación, CRUD de snippets, compartir, tests de snippets, reglas, formato y descarga, incluidos los flujos asíncronos por Redis (lint, formato y US-16), que se esperan con un sondeo. Necesita el login local.
+
+```sh
+COMPOSE_FILE=$COMPOSE_FILE:docker-compose.local-auth.yml docker-compose up -d
+dev/api-tests.sh                                 # bru viene en el dev shell
+dev/api-tests.sh --reporter-junit results.xml   # además, un reporte JUnit
+```
+
+- Cada corrida entra con usuarios nuevos (`owner-<runId>` y `reader-<runId>`): arrancan con las reglas por defecto y sin snippets, así se puede correr las veces que haga falta, sin limpiar nada.
+- Las carpetas dependen de las anteriores (tokens y el snippet creado en `02-snippets`): se corre la colección entera, en orden.
+- Desde la app de Bruno: abrir la carpeta `api-tests` y elegir el ambiente `local` (supone `HTTP_PORT=8088`; si no, cambiar `baseUrl` y `authUrl`).
+- Para Postman, Bruno exporta la colección (*Export → Postman Collection*).
+
+| Carpeta | Qué prueba |
+|---|---|
+| `01-auth` | `/health` sin token, `401` sin token o con uno inválido, tokens de los dos usuarios |
+| `02-snippets` | Crear (válido, inválido con diagnósticos, sin nombre, versión inexistente), lint por Redis hasta `compliant`, obtener, listar, filtrar, actualizar, `404` y `400` |
+| `03-compartir` | Buscar usuarios, compartir (también con un usuario inexistente y dos veces), lo que el lector puede (leer, listar, descargar) y no puede (editar, borrar, compartir) |
+| `04-tests` | Crear, listar, correr (`success` / `fail`, guardado y sin guardar), último resultado, editar, permisos del lector, US-16 (modificar el snippet vuelve a correr sus tests), borrar |
+| `05-reglas` | Reglas por defecto, `/format`, descarga original y formateada, cambio de lint (`not-compliant` y vuelta a `compliant`) y de formato (la versión formateada cambia) |
+| `06-limpieza` | Borrar el snippet: desaparece para los dos usuarios, con sus tests |
+
 ## Migrar a GitHub
 
 ```sh

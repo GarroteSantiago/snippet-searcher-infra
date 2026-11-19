@@ -1,0 +1,20 @@
+meta {
+  name: Obtener snippet
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 con el contenido", () => {
+    expect(res.status).to.equal(200)
+    expect(res.body.name).to.equal("saludo")
+    expect(res.body.content).to.contain("readInput")
+    expect(res.body.lintViolations).to.eql([])
+  })
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Crear un test sin nombre
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/snippets/{{snippetId}}/tests
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "input": [],
+    "output": []
+  }
+}
+
+tests {
+  test("400", () => expect(res.status).to.equal(400))
+}

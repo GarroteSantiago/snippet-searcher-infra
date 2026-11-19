@@ -1,0 +1,22 @@
+meta {
+  name: El lector ya no lo ve
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/snippets
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+tests {
+  test("200 vacío", () => {
+    expect(res.status).to.equal(200)
+    expect(res.body.count).to.equal(0)
+  })
+}

@@ -1,0 +1,26 @@
+meta {
+  name: Compartir de nuevo con el mismo usuario
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/snippets/{{snippetId}}/share
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "userId": "{{readerId}}"
+  }
+}
+
+tests {
+  test("200 sin duplicarlo", async () => {
+    expect(res.status).to.equal(200)
+    const axios = require("axios")
+    const list = await axios.get(bru.getEnvVar("baseUrl") + "/snippets", {headers: {Authorization: "Bearer " + bru.getVar("readerToken")}})
+    expect(list.data.count).to.equal(1)
+  })
+}

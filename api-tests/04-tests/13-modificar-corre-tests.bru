@@ -1,0 +1,33 @@
+meta {
+  name: Modificar el snippet vuelve a correr sus tests (US-16)
+  type: http
+  seq: 13
+}
+
+put {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "content": "let nombreUsuario: string = readInput(\"Nombre\");\nlet saludo: string = \"Chau \" + nombreUsuario;\nprintln(saludo);\nprintln(\"fin\");"
+  }
+}
+
+tests {
+  test("los tests quedan en fail con el contenido nuevo", async () => {
+    expect(res.status).to.equal(200)
+    const axios = require("axios")
+    const url = bru.getEnvVar("baseUrl") + "/snippets/" + bru.getVar("snippetId") + "/tests"
+    const headers = {Authorization: "Bearer " + bru.getVar("ownerToken")}
+    let results = []
+    for (let i = 0; i < 60; i++) {
+      results = (await axios.get(url, {headers})).data.map(t => t.lastResult)
+      if (results.every(r => r === "fail")) break
+      await new Promise(r => setTimeout(r, 250))
+    }
+    expect(results).to.eql(["fail", "fail"])
+  })
+}

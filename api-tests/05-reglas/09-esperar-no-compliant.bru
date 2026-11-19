@@ -1,0 +1,25 @@
+meta {
+  name: Esperar que el snippet quede not-compliant
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("not-compliant con la violación de identifier_format", async () => {
+    const axios = require("axios")
+    const headers = {Authorization: "Bearer " + bru.getVar("ownerToken")}
+    let snippet = res.body
+    for (let i = 0; i < 60 && snippet.compliance !== "not-compliant"; i++) {
+      await new Promise(r => setTimeout(r, 250))
+      snippet = (await axios.get(req.getUrl(), {headers})).data
+    }
+    expect(snippet.compliance).to.equal("not-compliant")
+    expect(snippet.lintViolations.map(v => v.rule)).to.include("identifier_format")
+  })
+}

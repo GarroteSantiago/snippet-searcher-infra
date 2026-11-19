@@ -1,0 +1,27 @@
+meta {
+  name: El lector no puede crear tests
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/snippets/{{snippetId}}/tests
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+body:json {
+  {
+    "name": "intruso",
+    "input": [],
+    "output": []
+  }
+}
+
+tests {
+  test("403", () => expect(res.status).to.equal(403))
+}

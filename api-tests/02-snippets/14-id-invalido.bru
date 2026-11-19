@@ -1,0 +1,15 @@
+meta {
+  name: Obtener con un id que no es UUID
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/snippets/no-es-uuid
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("400", () => expect(res.status).to.equal(400))
+}

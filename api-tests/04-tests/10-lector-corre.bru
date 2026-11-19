@@ -1,0 +1,22 @@
+meta {
+  name: El lector puede correr un test
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/snippets/{{snippetId}}/tests/{{testOkId}}/run
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+tests {
+  test("200 success (alcanza con READ)", () => {
+    expect(res.status).to.equal(200)
+    expect(res.body.status).to.equal("success")
+  })
+}

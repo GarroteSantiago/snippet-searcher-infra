@@ -1,0 +1,19 @@
+meta {
+  name: Correr el test que pasa
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/snippets/{{snippetId}}/tests/{{testOkId}}/run
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("success con los outputs", () => {
+    expect(res.status).to.equal(200)
+    expect(res.body.status).to.equal("success")
+    expect(res.body.outputs).to.eql(["Hola Ana", "fin"])
+  })
+}

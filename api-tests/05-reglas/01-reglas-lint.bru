@@ -1,0 +1,21 @@
+meta {
+  name: Reglas de lint por defecto
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/rules/lint
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200 con identifier_format en camel case", () => {
+    expect(res.status).to.equal(200)
+    const rule = res.body.find(r => r.id === "identifier_format")
+    expect(rule.isActive).to.equal(true)
+    expect(rule.value).to.equal("camel case")
+    res.body.forEach(r => expect(r).to.include.keys("id", "name", "isActive"))
+  })
+}

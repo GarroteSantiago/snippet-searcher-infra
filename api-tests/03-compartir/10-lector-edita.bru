@@ -1,0 +1,25 @@
+meta {
+  name: El lector no puede editarlo
+  type: http
+  seq: 10
+}
+
+put {
+  url: {{baseUrl}}/snippets/{{snippetId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{readerToken}}
+}
+
+body:json {
+  {
+    "content": "println(\"hackeado\");"
+  }
+}
+
+tests {
+  test("403", () => expect(res.status).to.equal(403))
+}

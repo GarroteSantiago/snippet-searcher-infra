@@ -1,0 +1,20 @@
+meta {
+  name: Buscar usuarios para compartir
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/users?name=&page=0&page_size=10
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("200, sin el usuario que busca", () => {
+    expect(res.status).to.equal(200)
+    expect(res.body.users).to.be.an("array").that.is.not.empty
+    expect(res.body.users.map(u => u.id)).to.not.include(bru.getVar("ownerId"))
+    res.body.users.forEach(u => expect(u).to.have.keys("id", "name"))
+  })
+}
