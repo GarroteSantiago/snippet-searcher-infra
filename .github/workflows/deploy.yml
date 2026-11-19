@@ -1,0 +1,72 @@
+name: Deploy
+
+# Despliega el stack de una rama (dev o prod) en su VM. Lo disparan:
+# - un push a dev o prod en este repo (cambios del stack o de NGINX);
+# - el publish de cada servicio, después de subir su imagen (repository_dispatch "deploy");
+# - a mano, desde la pestaña Actions.
+on:
+  push:
+    branches: [dev, prod]
+  repository_dispatch:
+    types: [deploy]
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [dev, prod]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # docker stack deploy espera a que los servicios converjan; una imagen que no baja lo cuelga
+    timeout-minutes: 20
+    # Variables y secretos de cada environment de GitHub (dev, prod): DOMAIN, SSH_USER,
+    # SSH_PRIVATE_KEY, SSH_KNOWN_HOSTS. Las comunes (Auth0, New Relic) son del repo.
+    environment: ${{ github.event.client_payload.environment || inputs.environment || github.ref_name }}
+    # Un despliegue por ambiente a la vez; uno nuevo espera al que está corriendo
+    concurrency:
+      group: deploy-${{ github.event.client_payload.environment || inputs.environment || github.ref_name }}
+      cancel-in-progress: false
+    env:
+      ENVIRONMENT: ${{ github.event.client_payload.environment || inputs.environment || github.ref_name }}
+    steps:
+      - name: Ambiente válido
+        run: |
+          case "$ENVIRONMENT" in dev|prod) ;; *) echo "Ambiente desconocido: $ENVIRONMENT" >&2; exit 1 ;; esac
+
+      # El stack de la rama del ambiente, aunque el dispatch corra el workflow de la rama por defecto
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ENVIRONMENT }}
+
+      - name: SSH a la VM
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      # Con --with-registry-auth estas credenciales llegan al Swarm para bajar las imágenes de GHCR
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.DEPLOY_PAT }}
+
+      - name: docker stack deploy
+        env:
+          DOCKER_HOST: ssh://${{ vars.SSH_USER }}@${{ vars.DOMAIN }}
+          TAG: ${{ env.ENVIRONMENT }}
+          DOMAIN: ${{ vars.DOMAIN }}
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
+          AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
+          AUTH0_AUDIENCE: ${{ vars.AUTH0_AUDIENCE }}
+          AUTH0_M2M_CLIENT_ID: ${{ vars.AUTH0_M2M_CLIENT_ID }}
+          NEW_RELIC_ENABLED: ${{ vars.NEW_RELIC_ENABLED || 'true' }}
+          NEW_RELIC_OTLP_URL: ${{ vars.NEW_RELIC_OTLP_URL }}
+        run: |
+          export REGISTRY="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
+          ./deploy.sh

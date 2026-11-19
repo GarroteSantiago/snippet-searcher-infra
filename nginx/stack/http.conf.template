@@ -1,0 +1,13 @@
+# Puerto 80 (Swarm): el desafío HTTP-01 de Let's Encrypt y la redirección a HTTPS.
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}

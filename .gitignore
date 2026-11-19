@@ -4,3 +4,6 @@ result
 
 # Contenedores rootless de este repo (dev/podman-env.sh)
 .podman/
+
+# Valores del asistente de despliegue (scripts/setup-deploy.sh)
+.env.deploy

@@ -1,0 +1,241 @@
+# Stack de Docker Swarm, el mismo para dev y prod: lo que cambia entre ambientes llega por
+# variables (deploy.sh, y en CI las variables del environment de GitHub). Los secretos ya están
+# creados en el Swarm (external) y llegan a los servicios como archivos en /run/secrets.
+#
+# Un Swarm de un solo nodo por VM: los servicios con volúmenes quedan en el manager.
+version: "3.8"
+
+x-service-env: &service-env
+  AUTH0_ISSUER_URI: https://${AUTH0_DOMAIN:?falta AUTH0_DOMAIN}/
+  AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:?falta AUTH0_AUDIENCE}
+  LOG_FORMAT: json
+  NEW_RELIC_ENABLED: ${NEW_RELIC_ENABLED:-true}
+  NEW_RELIC_LICENSE_KEY_FILE: /run/secrets/new_relic_license_key
+  NEW_RELIC_OTLP_URL: ${NEW_RELIC_OTLP_URL:-https://otlp.nr-data.net/v1/metrics}
+  NEW_RELIC_LABELS: environment:${ENVIRONMENT:?falta ENVIRONMENT (dev o prod)}
+
+# Servicios sin estado: actualización de a una réplica, la nueva arranca y pasa el health check
+# antes de bajar la vieja; si no llega a sana, vuelve a la versión anterior
+x-rolling: &rolling
+  update_config:
+    parallelism: 1
+    order: start-first
+    failure_action: rollback
+  rollback_config:
+    parallelism: 1
+    order: start-first
+  restart_policy:
+    condition: any
+    delay: 5s
+
+x-healthcheck: &healthcheck
+  test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+  interval: 10s
+  timeout: 3s
+  retries: 5
+  start_period: 120s
+
+x-manager: &manager
+  placement:
+    constraints: [node.role == manager]
+
+services:
+  # Único servicio publicado: 80 (Let's Encrypt y redirección) y 443
+  nginx:
+    image: nginx:1.27-alpine
+    entrypoint: ["/etc/nginx/stack/nginx-entrypoint.sh"]
+    environment:
+      DOMAIN: ${DOMAIN:?falta DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    configs:
+      - source: nginx_entrypoint
+        target: /etc/nginx/stack/nginx-entrypoint.sh
+        mode: 0555
+      - source: nginx_http
+        target: /etc/nginx/stack/http.conf.template
+      - source: nginx_https
+        target: /etc/nginx/stack/https.conf.template
+    volumes:
+      - certs:/etc/letsencrypt:ro
+      - acme:/var/www/certbot:ro
+    deploy:
+      <<: *manager
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  certbot:
+    image: certbot/certbot:latest
+    entrypoint: ["/bin/sh", "/certbot.sh"]
+    environment:
+      DOMAIN: ${DOMAIN}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:?falta LETSENCRYPT_EMAIL}
+      LETSENCRYPT_STAGING: ${LETSENCRYPT_STAGING:-false}
+    configs:
+      - source: certbot_script
+        target: /certbot.sh
+        mode: 0555
+    volumes:
+      - certs:/etc/letsencrypt
+      - acme:/var/www/certbot
+    deploy:
+      <<: *manager
+      restart_policy:
+        condition: any
+        delay: 30s
+
+  printscript-ui:
+    image: ${REGISTRY:?falta REGISTRY}/printscript-ui:${TAG:?falta TAG}
+    deploy:
+      <<: *rolling
+
+  snippet-service:
+    image: ${REGISTRY}/snippet-service:${TAG}
+    environment:
+      <<: *service-env
+      DB_URL: jdbc:postgresql://postgres:5432/snippet
+      DB_USER: snippet
+      DB_PASSWORD_FILE: /run/secrets/snippet_db_password
+      PERMISSION_SERVICE_URL: http://permission-service:8080
+      RUNNER_URL: http://printscript-runner:8080
+      ASSET_SERVICE_URL: http://asset-service:8080
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Una sola app machine-to-machine de Auth0: client credentials para la API y
+      # read:users en la Management API
+      AUTH0_TOKEN_URI: https://${AUTH0_DOMAIN}/oauth/token
+      AUTH0_SERVICE_CLIENT_ID: ${AUTH0_M2M_CLIENT_ID:?falta AUTH0_M2M_CLIENT_ID}
+      AUTH0_SERVICE_CLIENT_SECRET_FILE: /run/secrets/auth0_m2m_client_secret
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_M2M_CLIENT_ID: ${AUTH0_M2M_CLIENT_ID}
+      AUTH0_M2M_CLIENT_SECRET_FILE: /run/secrets/auth0_m2m_client_secret
+    secrets: [snippet_db_password, auth0_m2m_client_secret, new_relic_license_key]
+    healthcheck: *healthcheck
+    deploy:
+      replicas: 2
+      <<: *rolling
+
+  permission-service:
+    image: ${REGISTRY}/permission-service:${TAG}
+    environment:
+      <<: *service-env
+      DB_URL: jdbc:postgresql://postgres:5432/permission
+      DB_USER: permission
+      DB_PASSWORD_FILE: /run/secrets/permission_db_password
+    secrets: [permission_db_password, new_relic_license_key]
+    healthcheck: *healthcheck
+    deploy:
+      <<: *rolling
+
+  # Cada réplica es un consumidor distinto del grupo de snippet:jobs (el nombre es el hostname)
+  printscript-runner:
+    image: ${REGISTRY}/printscript-runner:${TAG}
+    environment:
+      <<: *service-env
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    secrets: [new_relic_license_key]
+    healthcheck: *healthcheck
+    deploy:
+      replicas: 2
+      <<: *rolling
+
+  asset-service:
+    image: ghcr.io/austral-ingsis/snippet-asset-service:latest
+    environment:
+      AZURE_HOST: http://azurite
+      NEW_RELIC_APP_NAME: asset-service
+      NEW_RELIC_AGENT_ENABLED: "false"
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    command: azurite-blob --blobHost 0.0.0.0 --location /data
+    volumes:
+      - azurite:/data
+    deploy:
+      <<: *manager
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      SNIPPET_DB_PASSWORD_FILE: /run/secrets/snippet_db_password
+      PERMISSION_DB_PASSWORD_FILE: /run/secrets/permission_db_password
+    secrets: [postgres_password, snippet_db_password, permission_db_password]
+    configs:
+      - source: postgres_init
+        target: /docker-entrypoint-initdb.d/init-databases.sh
+        mode: 0555
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    deploy:
+      <<: *manager
+
+  redis:
+    image: redis:7-alpine
+    # AOF: los streams sobreviven a un reinicio
+    command: redis-server --appendonly yes
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    deploy:
+      <<: *manager
+
+# Los servicios se hablan por esta red overlay; de afuera solo se llega a los puertos de NGINX
+networks:
+  default:
+    driver: overlay
+
+volumes:
+  postgres:
+  redis:
+  azurite:
+  certs:
+  acme:
+
+# Creados en cada VM con scripts/create-secrets.sh, nunca en el repo
+secrets:
+  postgres_password:
+    external: true
+  snippet_db_password:
+    external: true
+  permission_db_password:
+    external: true
+  auth0_m2m_client_secret:
+    external: true
+  new_relic_license_key:
+    external: true
+
+# Las configs de Swarm no se pueden modificar: CONFIG_VERSION (deploy.sh, un hash de los archivos)
+# da un nombre nuevo a cada contenido nuevo
+configs:
+  nginx_entrypoint:
+    name: nginx_entrypoint_${CONFIG_VERSION:?falta CONFIG_VERSION (usar deploy.sh)}
+    file: ./nginx/stack/nginx-entrypoint.sh
+  nginx_http:
+    name: nginx_http_${CONFIG_VERSION}
+    file: ./nginx/stack/http.conf.template
+  nginx_https:
+    name: nginx_https_${CONFIG_VERSION}
+    file: ./nginx/stack/https.conf.template
+  certbot_script:
+    name: certbot_script_${CONFIG_VERSION}
+    file: ./nginx/stack/certbot.sh
+  postgres_init:
+    name: postgres_init_${CONFIG_VERSION}
+    file: ./postgres/init-databases.sh

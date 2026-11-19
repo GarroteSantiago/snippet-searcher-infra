@@ -21,3 +21,20 @@ jobs:
           nix develop --command docker-compose -f docker-compose.yml config --quiet
           nix develop --command docker-compose -f docker-compose.yml -f docker-compose.build.yml config --quiet
           nix develop --command docker-compose -f docker-compose.yml -f docker-compose.local-auth.yml config --quiet
+
+      # El docker del runner valida el stack sin Swarm, con valores de ejemplo
+      - name: Validar el stack de Swarm
+        env:
+          ENVIRONMENT: dev
+          TAG: dev
+          REGISTRY: ghcr.io/example
+          DOMAIN: dev.example.com
+          LETSENCRYPT_EMAIL: ci@example.com
+          AUTH0_DOMAIN: example.us.auth0.com
+          AUTH0_AUDIENCE: https://snippet-searcher/api
+          AUTH0_M2M_CLIENT_ID: ci
+          CONFIG_VERSION: ci
+        run: docker stack config -c docker-stack.yml > /dev/null
+
+      - name: Shellcheck
+        run: shellcheck deploy.sh scripts/*.sh nginx/stack/*.sh postgres/init-databases.sh

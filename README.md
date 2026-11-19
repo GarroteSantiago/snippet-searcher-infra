@@ -1,6 +1,6 @@
 # snippet-searcher-infra
 
-Infraestructura de Snippet Searcher: el sistema completo con docker compose, la configuración de NGINX y (más adelante) los stacks de Docker Swarm por ambiente.
+Infraestructura de Snippet Searcher: el sistema completo con docker compose, la configuración de NGINX y el stack de Docker Swarm de cada ambiente (`dev` y `prod`).
 
 ## Requisitos
 
@@ -169,6 +169,56 @@ Recorrido a mano, en `http://localhost:8088/` (una ventana normal para alice y u
 - [ ] **Descargar formateado.** *Download → Original* baja el contenido tal cual. Si el usuario nunca cambió sus reglas de formato, *Formatted* avisa que todavía no hay (la versión formateada se genera recién con un cambio de reglas). En *Formatting rules*, cambiar una regla y guardar; al rato *Download → Formatted* baja la versión con las reglas nuevas.
 - [ ] **Renovar el token.** Con `"tokenExpiry": 120` en `local-auth/config.json` y `docker-compose restart oidc`, entrar y dejar la pestaña abierta 2 o 3 minutos: en la pestaña *Network* de las herramientas del navegador aparece un `POST .../token` con `grant_type=refresh_token` antes de que venza, y la UI sigue andando sin volver al login. Después, dejar `3600` y reiniciar `oidc` de nuevo.
 
+## Despliegue (Docker Swarm)
+
+Cada ambiente es una VM de Azure con un Swarm de un nodo: `dev` despliega la rama `dev` y `prod` la rama `prod`. La primera vez, `scripts/setup-deploy.sh` guía la creación de las cuentas, las VMs y los secretos (ver abajo).
+
+**El stack** (`docker-stack.yml`) es el mismo para los dos ambientes; lo que cambia llega por variables.
+
+- Réplicas: Snippet Service ×2 y Runner ×2 (cada réplica del Runner es un consumidor aparte del grupo, con su hostname). Las actualizaciones son de a una réplica: la nueva tiene que pasar el health check (`/health`) antes de que baje la vieja, y si no lo pasa el servicio vuelve a la versión anterior.
+- Red: una overlay para todos los servicios. Solo NGINX publica puertos, el 80 y el 443.
+- Volúmenes de Postgres, Redis (con AOF), Azurite y los certificados. Esos servicios quedan en el nodo manager.
+- Secretos: `docker secret` externos, creados en cada VM con `scripts/create-secrets.sh` (nunca pasan por el repo ni por CI). Llegan como archivos en `/run/secrets` y cada imagen los lee con la convención `VAR_FILE` (los `docker-entrypoint.sh` de los servicios, `postgres/init-databases.sh` y la imagen de Postgres).
+
+| Secreto | Qué es |
+|---|---|
+| `postgres_password`, `snippet_db_password`, `permission_db_password` | Contraseñas de Postgres (al azar si no se pasan). Solo se aplican con el volumen vacío |
+| `auth0_m2m_client_secret` | La app machine-to-machine de Auth0: client credentials para la API y `read:users` en la Management API |
+| `new_relic_license_key` | License key de ingesta de New Relic |
+
+**TLS.** Let's Encrypt con el desafío HTTP-01 (`nginx/stack/`). NGINX arranca solo con el puerto 80 (el desafío y una redirección a HTTPS); el servicio `certbot` emite el certificado en el volumen `certs` y NGINX suma el 443 en cuanto lo encuentra (a lo sumo 30 s). `certbot` intenta renovar cada 12 h y NGINX recarga cada 12 h. El dominio es el DNS de la IP pública de la VM (`<label>.<región>.cloudapp.azure.com`), que tiene que existir antes del primer despliegue. Para probar sin gastar los intentos de Let's Encrypt: `LETSENCRYPT_STAGING=true` (el navegador no confía en ese certificado; para pasar al real, borrar el volumen `snippet-searcher_certs`).
+
+**CD.** `.github/workflows/deploy.yml` corre `deploy.sh` contra la VM del ambiente por SSH (`DOCKER_HOST=ssh://...`). Lo disparan un push a `dev` o `prod` de este repo, el `publish.yml` de cada servicio y de la UI después de subir su imagen a GHCR (un `repository_dispatch` con el ambiente), o la pestaña *Actions* a mano. Como el tag de la imagen es el nombre de la rama, `docker stack deploy` lo resuelve en GHCR y actualiza solo los servicios cuya imagen cambió.
+
+| Dónde | Nombre | Qué es |
+|---|---|---|
+| Secreto del repo | `DEPLOY_PAT` | Token clásico con `repo` y `read:packages`: baja las imágenes de GHCR (y en los otros repos, dispara este workflow) |
+| Variables del repo | `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`, `AUTH0_M2M_CLIENT_ID`, `LETSENCRYPT_EMAIL`, `NEW_RELIC_OTLP_URL`, `NEW_RELIC_ENABLED` (opcional, `true` por defecto) | Comunes a los dos ambientes |
+| Environment `dev` / `prod` | variables `DOMAIN`, `SSH_USER`; secretos `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` | La VM y la clave SSH con la que CI entra |
+
+A mano, desde una máquina con acceso SSH a la VM:
+
+```sh
+docker login ghcr.io
+ENVIRONMENT=dev TAG=dev REGISTRY=ghcr.io/<owner> DOMAIN=<label>.<región>.cloudapp.azure.com \
+  LETSENCRYPT_EMAIL=... AUTH0_DOMAIN=... AUTH0_AUDIENCE=... AUTH0_M2M_CLIENT_ID=... \
+  DOCKER_HOST=ssh://azureuser@<dominio> ./deploy.sh
+
+# Estado y logs
+DOCKER_HOST=ssh://azureuser@<dominio> docker stack ps snippet-searcher
+DOCKER_HOST=ssh://azureuser@<dominio> docker service logs -f snippet-searcher_snippet-service
+```
+
+Para volver a una versión anterior de un servicio, cada imagen también tiene el tag `<rama>-<sha>`: `docker service update --image ghcr.io/<owner>/snippet-service:dev-<sha> snippet-searcher_snippet-service` (el próximo despliegue vuelve a `dev`).
+
+### Primera vez: `scripts/setup-deploy.sh`
+
+Un asistente en bash que guía, paso a paso, lo que necesita cuentas: los repos de GitHub, el token, Auth0, New Relic, las dos VMs de Azure (con `az`), Docker y Swarm en ellas, los secretos, las variables y secretos de GitHub, y el primer push. Abre cada página, dice qué copiar y guarda los valores en `.env.deploy` (ignorado por git), así que se puede cortar y volver a correr. Necesita `gh` con sesión iniciada, `ssh` y la CLI de Azure (`nix shell nixpkgs#azure-cli`).
+
+```sh
+scripts/setup-deploy.sh
+```
+
 ## Migrar a GitHub
 
 ```sh
@@ -177,4 +227,4 @@ git push -u origin dev prod
 gh repo edit <owner>/snippet-searcher-infra --default-branch dev
 ```
 
-CI (`ci.yml`) valida los archivos de compose en cada pull request.
+CI (`ci.yml`) valida los archivos de compose, el stack de Swarm y los scripts (shellcheck) en cada pull request.
