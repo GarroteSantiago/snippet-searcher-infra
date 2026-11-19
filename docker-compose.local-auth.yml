@@ -40,6 +40,10 @@ services:
       # El servidor de prueba no valida credenciales
       AUTH0_SERVICE_CLIENT_ID: snippet-service
       AUTH0_SERVICE_CLIENT_SECRET: local-secret
+      # Management API de mentira en NGINX (nginx/local-auth.conf.template), para compartir
+      AUTH0_DOMAIN: http://auth.localhost:${HTTP_PORT}
+      AUTH0_M2M_CLIENT_ID: snippet-service
+      AUTH0_M2M_CLIENT_SECRET: local-secret
 
   permission-service:
     environment:

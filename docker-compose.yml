@@ -6,6 +6,13 @@ x-auth0: &auth0
   AUTH0_ISSUER_URI: ${AUTH0_ISSUER_URI:?falta AUTH0_ISSUER_URI en .env}
   AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:?falta AUTH0_AUDIENCE en .env}
 
+# Logs y New Relic (apagado hasta tener la license key). /prometheus queda en el puerto interno 9464
+x-observability: &observability
+  LOG_FORMAT: ${LOG_FORMAT:-json}
+  NEW_RELIC_ENABLED: ${NEW_RELIC_ENABLED:-false}
+  NEW_RELIC_LICENSE_KEY: ${NEW_RELIC_LICENSE_KEY:-}
+  NEW_RELIC_OTLP_URL: ${NEW_RELIC_OTLP_URL:-https://otlp.nr-data.net/v1/metrics}
+
 services:
   nginx:
     image: nginx:1.27-alpine
@@ -21,7 +28,7 @@ services:
   snippet-service:
     image: ${REGISTRY:?falta REGISTRY en .env}/snippet-service:${TAG:-dev}
     environment:
-      <<: *auth0
+      <<: [*auth0, *observability]
       DB_URL: jdbc:postgresql://postgres:5432/snippet
       DB_USER: snippet
       DB_PASSWORD: ${SNIPPET_DB_PASSWORD:?falta SNIPPET_DB_PASSWORD en .env}
@@ -54,7 +61,7 @@ services:
   permission-service:
     image: ${REGISTRY}/permission-service:${TAG:-dev}
     environment:
-      <<: *auth0
+      <<: [*auth0, *observability]
       DB_URL: jdbc:postgresql://postgres:5432/permission
       DB_USER: permission
       DB_PASSWORD: ${PERMISSION_DB_PASSWORD:?falta PERMISSION_DB_PASSWORD en .env}
@@ -66,7 +73,7 @@ services:
   printscript-runner:
     image: ${REGISTRY}/printscript-runner:${TAG:-dev}
     environment:
-      <<: *auth0
+      <<: [*auth0, *observability]
       REDIS_HOST: redis
       REDIS_PORT: 6379
     depends_on:

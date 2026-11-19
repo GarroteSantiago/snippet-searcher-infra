@@ -44,6 +44,16 @@ docker-compose exec redis redis-cli XINFO GROUPS snippet:jobs
 
 NGINX agrega `X-Correlation-Id` a cada request que no lo trae, así un pedido se puede seguir en los logs de todos los servicios.
 
+**Observabilidad.** Los servicios loguean en JSON (`LOG_FORMAT=plain` para leerlos a mano) y exponen métricas en Prometheus en el puerto interno 9464, que no se publica ni pasa por NGINX:
+
+```sh
+docker-compose exec snippet-service curl -s localhost:9464/prometheus | grep redis_stream
+```
+
+New Relic queda apagado hasta tener la license key: `NEW_RELIC_ENABLED=true` y `NEW_RELIC_LICENSE_KEY` en `.env` (ver el README de cada servicio).
+
+Con imágenes construidas a mano (`podman build -t snippet-searcher/<servicio>:local`, `REGISTRY=snippet-searcher` y `TAG=local`), `docker-compose up -d --pull never`: si no, compose las busca en docker.io.
+
 ## Login local (sin Auth0)
 
 `docker-compose.local-auth.yml` suma un servidor OIDC de prueba ([mock-oauth2-server](https://github.com/navikt/mock-oauth2-server), servicio `oidc`) que emite tokens con la forma de los de Auth0. Los servicios no cambian: el override solo pisa las variables de Auth0 de `.env`.
@@ -88,7 +98,7 @@ curl -s http://auth.localhost:8088/snippet-searcher/token \
 
 **Limitaciones.**
 
-- Buscar usuarios para compartir (`GET /users`) usa la Management API de Auth0 y no funciona con el login local. Compartir con `POST /snippets/{id}/share` también la usa para comprobar que el usuario existe.
+- Compartir usa la Management API de Auth0 (buscar usuarios y comprobar que existen). Con el login local la reemplaza una de mentira en NGINX (`AUTH0_DOMAIN=http://auth.localhost:${HTTP_PORT}`): la búsqueda devuelve siempre a `alice` y `bob` sin filtrar por nombre, y cualquier `auth0|<nombre>` existe.
 - La clave de firma viene dentro de la imagen del servidor de prueba (es pública): no sirve para nada fuera de este entorno.
 - Dentro de un contenedor, `curl` también resuelve `*.localhost` a sí mismo; los servicios (Java) usan el DNS de compose y no tienen el problema. Para probar a mano desde un contenedor: `curl --resolve auth.localhost:8088:$(getent hosts auth.localhost | cut -d' ' -f1) ...`.
 
