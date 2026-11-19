@@ -20,3 +20,4 @@ jobs:
           cp .env.example .env
           nix develop --command docker-compose -f docker-compose.yml config --quiet
           nix develop --command docker-compose -f docker-compose.yml -f docker-compose.build.yml config --quiet
+          nix develop --command docker-compose -f docker-compose.yml -f docker-compose.local-auth.yml config --quiet

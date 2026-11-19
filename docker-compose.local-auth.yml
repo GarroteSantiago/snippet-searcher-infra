@@ -1,0 +1,50 @@
+# Login local: un servidor OIDC de prueba en vez de Auth0, para hacer pedidos reales sin tenant.
+#
+#   COMPOSE_FILE=$COMPOSE_FILE:docker-compose.local-auth.yml docker-compose up -d
+#
+# Emite tokens con la forma de los de Auth0 (RS256, `sub` = auth0|<usuario>, `aud` =
+# https://snippet-searcher/api; client credentials con `sub` = <client_id>@clients y
+# `gty` = client-credentials). Los servicios no cambian: solo apuntan AUTH0_ISSUER_URI acá.
+# Pisa los valores de Auth0 de .env. Ver "Login local" en el README.
+x-local-auth: &local-auth
+  AUTH0_ISSUER_URI: http://auth.localhost:${HTTP_PORT:?falta HTTP_PORT en .env}/snippet-searcher
+  AUTH0_AUDIENCE: https://snippet-searcher/api
+
+services:
+  oidc:
+    image: ghcr.io/navikt/mock-oauth2-server:6
+    environment:
+      JSON_CONFIG_PATH: /local-auth/config.json
+    volumes:
+      - ./local-auth:/local-auth:ro
+    restart: unless-stopped
+
+  nginx:
+    environment:
+      HTTP_PORT: ${HTTP_PORT}
+      NGINX_ENTRYPOINT_LOCAL_RESOLVERS: "1"
+    volumes:
+      - ./nginx/local-auth.conf.template:/etc/nginx/templates/local-auth.conf.template:ro
+    networks:
+      default:
+        # Los servicios llegan al emisor con el mismo nombre que el navegador
+        aliases:
+          - auth.localhost
+    depends_on:
+      - oidc
+
+  snippet-service:
+    environment:
+      <<: *local-auth
+      AUTH0_TOKEN_URI: http://auth.localhost:${HTTP_PORT}/snippet-searcher/token
+      # El servidor de prueba no valida credenciales
+      AUTH0_SERVICE_CLIENT_ID: snippet-service
+      AUTH0_SERVICE_CLIENT_SECRET: local-secret
+
+  permission-service:
+    environment:
+      <<: *local-auth
+
+  printscript-runner:
+    environment:
+      <<: *local-auth

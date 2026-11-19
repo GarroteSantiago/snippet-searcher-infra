@@ -1,0 +1,23 @@
+# Servidor OIDC de prueba (docker-compose.local-auth.yml). La imagen de NGINX reemplaza las
+# variables al arrancar y deja el resultado en conf.d/.
+#
+# El emisor es http://auth.localhost:${HTTP_PORT}/snippet-searcher, igual desde el navegador
+# (que llega por el puerto publicado al 80) y desde los servicios (que resuelven auth.localhost
+# a este contenedor y llegan directo a ${HTTP_PORT}). El servidor arma el `iss` con el Host,
+# así que se fija acá: el token no depende de quién lo pide.
+server {
+    listen 80;
+    listen ${HTTP_PORT};
+    server_name auth.localhost;
+
+    # Resuelve `oidc` en cada pedido (DNS de Docker o de Podman, leído de resolv.conf): si el
+    # contenedor se reinicia y cambia de IP, NGINX lo sigue encontrando
+    resolver ${NGINX_LOCAL_RESOLVERS} valid=10s;
+    set $oidc http://oidc:8080;
+
+    location / {
+        proxy_pass $oidc;
+        proxy_set_header Host auth.localhost:${HTTP_PORT};
+        proxy_set_header X-Forwarded-Proto http;
+    }
+}

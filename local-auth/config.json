@@ -1,0 +1,43 @@
+{
+  "interactiveLogin": true,
+  "loginPagePath": "/local-auth/login.html",
+  "tokenCallbacks": [
+    {
+      "issuerId": "snippet-searcher",
+      "tokenExpiry": 3600,
+      "requestMappings": [
+        {
+          "requestParam": "grant_type",
+          "match": "client_credentials",
+          "claims": {
+            "sub": "${clientId}@clients",
+            "gty": "client-credentials",
+            "aud": "https://snippet-searcher/api"
+          }
+        },
+        {
+          "requestParam": "username",
+          "match": ".+",
+          "claims": {
+            "sub": "auth0|${username}",
+            "name": "${username}",
+            "nickname": "${username}",
+            "email": "${username}@example.com",
+            "aud": ["https://snippet-searcher/api", "${clientId}"]
+          }
+        },
+        {
+          "requestParam": "subject",
+          "match": ".+",
+          "claims": {
+            "sub": "auth0|${subject}",
+            "name": "${subject}",
+            "nickname": "${subject}",
+            "email": "${subject}@example.com",
+            "aud": ["https://snippet-searcher/api", "${clientId}"]
+          }
+        }
+      ]
+    }
+  ]
+}

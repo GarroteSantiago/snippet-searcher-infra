@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login local</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 22rem; margin: 4rem auto; padding: 0 1rem; }
+    form { display: flex; flex-direction: column; gap: .75rem; }
+    button, input { font: inherit; padding: .5rem; }
+    p { color: #555; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <h1>Login local</h1>
+  <p>Servidor OIDC de prueba: no hay contraseñas. El usuario queda como <code>auth0|&lt;nombre&gt;</code>.</p>
+  <form method="post">
+    <button type="submit" name="username" value="alice">Entrar como alice</button>
+    <button type="submit" name="username" value="bob">Entrar como bob</button>
+  </form>
+  <hr>
+  <form method="post">
+    <input type="text" name="username" placeholder="Otro usuario" required pattern="[A-Za-z0-9._-]+">
+    <button type="submit">Entrar</button>
+  </form>
+</body>
+</html>
